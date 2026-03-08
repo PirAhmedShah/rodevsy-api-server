@@ -86,7 +86,7 @@ export class AuthService {
       this.jwtService.sign(refreshTokenEntity),
     ]);
 
-    return { accessToken, refreshToken, user };
+    return { accessToken, refreshToken, user: {} }; //sending empty object for now, will be implemented
   }
 
   async refresh(refreshTokenStr: Cookie) {
