@@ -1,0 +1,29 @@
+### ---- Signup ---- 
+POST http://localhost/auth/signup
+Content-Type: application/json
+
+{
+    "username": "RehmanAli",
+    "password": "Rehman123!@#",
+    "email": "rehman@example.com",
+    "dob": "2003-01-01",
+    "firstName": "Rehman",
+    "lastName": "Ali",
+    "type": "Developer",
+    "gender": "male"
+}
+### ---- Login ---- 
+POST http://localhost/auth/login
+Content-Type: application/json
+
+{
+    "username": "RehmanAli",
+    "password": "Rehman123!@#"
+}
+### ---- Refresh ---- 
+POST http://localhost/auth/refresh
+Content-Type: application/json
+
+### ---- Logout ---- 
+POST http://localhost/auth/logout
+Content-Type: application/json

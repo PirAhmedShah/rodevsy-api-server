@@ -1,0 +1,9 @@
+.vscode
+api
+dist
+migrations
+node_modules
+secrets
+*.conf
+*.md
+.env

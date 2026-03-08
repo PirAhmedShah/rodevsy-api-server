@@ -1,0 +1,32 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "sshOptions": {
+                "port": 22
+            },
+            "driver": "PostgreSQL",
+            "database": "dev",
+            "username": "postgres",
+            "group": "Rodevsy",
+            "name": "dev_db",
+            "password": "IWfnFDTEZMr6E2IYrQjILI5_ZA5O$YUkWgNhtTm8h5gOwyEXk6tTxZIYbJUyaGX1f"
+        }
+    ],
+    "typescript.tsdk": "./node_modules/typescript/lib",
+    "prettier.requireConfig": false,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "eslint.format.enable": true,
+    "[typescript]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    }
+}

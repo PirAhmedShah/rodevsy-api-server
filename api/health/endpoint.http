@@ -1,0 +1,5 @@
+
+### Readiness Checks
+GET http://localhost:8080/health/ready HTTP/1.1
+### Liveness Checks
+GET http://localhost:8080/health/live HTTP/1.1
