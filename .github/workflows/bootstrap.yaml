@@ -32,7 +32,7 @@ jobs:
                     username: root
                     key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
                     passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
-                    fingerprint: ${{vars.VPS_FINGERPRINT}}
+                    #fingerprint: ${{vars.VPS_FINGERPRINT}}
                     envs: VPS_USER, VPS_PUBLIC_SSH_KEY
                     #As root we have to setup
                     # install docker
@@ -61,7 +61,7 @@ jobs:
                         chmod 700 /home/$VPS_USER/.ssh
                         chmod 600 /home/$VPS_USER/.ssh/authorized_keys
 
-                        sshd -t && systemctl restart ssh || echo "sshd config invalid"
+                        sshd -t && systemctl restart ssh
                         
                         mkdir -p /home/$VPS_USER/app/
                         chown $VPS_USER:$VPS_USER /home/$VPS_USER/app/
@@ -78,7 +78,7 @@ jobs:
                     username: ${{vars.VPS_USER}}
                     key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
                     passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
-                    fingerprint: ${{vars.VPS_FINGERPRINT}}
+                    #fingerprint: ${{vars.VPS_FINGERPRINT}}
                     source: "nginx.prod.conf,migrations/,compose.prod.yaml"
                     target: "/home/${{ vars.VPS_USER }}/app/"
 
