@@ -31,17 +31,14 @@ export class AuthController {
     @Ip() ip: string,
     @Headers('fingerprint') fingerprint: string,
     @Headers('user-agent') userAgent: string,
-    @Res({ passthrough: true }) res: Express.Response,
+    @Res() res: Express.Response,
   ) {
     // 1. Pass metadata to service for login_history logging
-    const { accessToken, refreshToken, user } = await this.authService.login(
-      dto,
-      {
-        ip,
-        fingerprint: fingerprint || 'unknown',
-        userAgent: userAgent || 'unknown',
-      },
-    );
+    const { refreshToken } = await this.authService.login(dto, {
+      ip,
+      fingerprint: fingerprint || 'unknown',
+      userAgent: userAgent || 'unknown',
+    });
 
     // 2. Set the Refresh Token cookie using Entity constants
     res.cookie('refreshToken', refreshToken, {
@@ -51,9 +48,7 @@ export class AuthController {
       path: '/auth',
       maxAge: RefreshToken.LIFETIME * 1000,
     });
-
-    // 3. Return the signed access token string and user
-    return { accessToken, user };
+    return null;
   }
   @Post('refresh')
   @HttpCode(200)
