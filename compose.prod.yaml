@@ -1,0 +1,171 @@
+services:
+  gateway:
+    image: nginx:stable-alpine
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    restart: unless-stopped
+    #uncomment when nginx becomes a bottleneck (high SSL termination load)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 64m
+    #       cpus: "0.25"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  db_migration:
+    image: amacneil/dbmate
+    entrypoint: >
+      sh -c '
+        export DATABASE_URL="postgres://postgres:$$(cat /run/secrets/db_password | tr -d "\n")@db:5432/prod?sslmode=disable";
+        dbmate up
+      '
+    volumes:
+      - ./migrations:/db/migrations
+    secrets:
+      - db_password
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: your-registry/your-api:${IMAGE_TAG:-latest}
+    environment:
+      - PORT=8080
+      - NODE_OPTIONS=--max-old-space-size=400 # OOM GUARD: V8 heap cap,raise alongside Docker memory limit below
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - DB_USER=postgres
+      - DB_NAME=prod
+      - DB_POOL_MIN_CONNECTIONS=2
+      - DB_POOL_MAX_CONNECTIONS=20 #raise alongside max_connections in db
+      - NODE_ENV=production
+      - JWT_PUBLIC_FILE=/run/secrets/jwt_public
+      - JWT_PRIVATE_FILE=/run/secrets/jwt_private
+      - JWT_ISSUER=https://yourdomain.com
+      - JWT_AUDIENCE=API
+      - CACHE_HOST=cache
+      - CACHE_PORT=6379
+      - CACHE_PASSWORD_FILE=/run/secrets/cache_password
+      - CACHE_POOL_MIN_CONNECTIONS=1
+      - CACHE_POOL_MAX_CONNECTIONS=20 #raise if cache pool exhaustion appears in logs
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:8080/']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m # OOM GUARD: safety net above V8 heap (native addons, buffers outside V8)
+          #raise to 768m or 1g when you have real traffic, raise NODE_OPTIONS to match
+          # cpus: "0.75"                        #uncomment when sharing box with other workloads
+    secrets:
+      - db_password
+      - cache_password
+      - jwt_public
+      - jwt_private
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      db_migration:
+        condition: service_completed_successfully
+
+  db:
+    image: postgres:18-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db_password
+      - POSTGRES_DB=prod
+    command: >
+      postgres
+        -c max_connections=50
+        -c shared_buffers=128MB           #raise to 256MB on 4GB box
+        -c effective_cache_size=512MB     #raise to 1GB on 4GB box
+        -c maintenance_work_mem=32MB
+        -c work_mem=4MB                   #raise to 8MB if slow sorts appear in logs
+        -c wal_buffers=8MB
+        -c checkpoint_completion_target=0.9
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c log_min_duration_statement=500
+        -c log_connections=off
+        -c log_disconnections=off
+    secrets:
+      - db_password
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    # Postgres is self-limiting via max_connections + shared_buffers above
+    #uncomment only if other services compete for RAM on a busier box
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 512m                  #raise to 1g on 4GB box
+    #       cpus: "0.5"
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  cache:
+    image: redis:8.4.0-alpine
+    command: >
+      sh -c 'redis-server
+        --requirepass "$$(cat /run/secrets/cache_password | tr -d "\n")"
+        --appendonly yes
+        --maxmemory 256mb
+        --maxmemory-policy allkeys-lru
+        --save 900 1
+        --save 300 10
+        --hz 10
+        --aof-rewrite-incremental-fsync yes'
+    secrets:
+      - cache_password
+    volumes:
+      - cache_data:/data
+    restart: unless-stopped
+    # OOM GUARD: maxmemory above is Redis's internal cap — it evicts keys instead of growing past it
+    #raise maxmemory to 512mb on 4GB box, then uncomment Docker limit below to match
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 300m                  # maxmemory 256mb + ~44mb Redis process overhead
+    #       cpus: "0.25"
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "redis-cli -a \"$(cat /run/secrets/cache_password | tr -d '\n')\" PING",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.secret
+  cache_password:
+    file: ./secrets/cache_password.secret
+  jwt_public:
+    file: ./secrets/jwt_public.pem
+  jwt_private:
+    file: ./secrets/jwt_private.pem
+
+volumes:
+  db_data:
+    driver: local
+  cache_data:
+    driver: local
