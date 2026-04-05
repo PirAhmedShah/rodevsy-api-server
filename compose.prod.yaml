@@ -137,7 +137,7 @@ services:
     volumes:
       - cache_data:/data
     restart: unless-stopped
-    # OOM GUARD: maxmemory above is Redis's internal cap — it evicts keys instead of growing past it
+    # OOM GUARD: maxmemory above is Redis's internal cap - it evicts keys instead of growing past it
     #raise maxmemory to 512mb on 4GB box, then uncomment Docker limit below to match
     # deploy:
     #   resources:

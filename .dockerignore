@@ -7,3 +7,4 @@ secrets
 *.conf
 *.md
 .env
+*.txt

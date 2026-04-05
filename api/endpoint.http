@@ -11,4 +11,5 @@ PATCH http://localhost:8080/ HTTP/1.1
 PUT http://localhost:8080/ HTTP/1.1
 ###
 DELETE  http://localhost:8080/ HTTP/1.1
-
+###
+GET http://localhost:8080/whoami HTTP/1.1

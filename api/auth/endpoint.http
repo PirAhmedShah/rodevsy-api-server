@@ -1,5 +1,5 @@
 ### ---- Signup ---- 
-POST http://localhost/auth/signup
+POST http://localhost:8080/auth/signup
 Content-Type: application/json
 
 {
@@ -13,7 +13,7 @@ Content-Type: application/json
     "gender": "male"
 }
 ### ---- Login ---- 
-POST http://localhost/auth/login
+POST http://localhost:8080/auth/login
 Content-Type: application/json
 
 {
@@ -21,9 +21,9 @@ Content-Type: application/json
     "password": "Rehman123!@#"
 }
 ### ---- Refresh ---- 
-POST http://localhost/auth/refresh
+POST http://localhost:8080/auth/refresh
 Content-Type: application/json
 
 ### ---- Logout ---- 
-POST http://localhost/auth/logout
+POST http://localhost:8080/auth/logout
 Content-Type: application/json

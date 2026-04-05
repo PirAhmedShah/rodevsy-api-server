@@ -1,4 +1,4 @@
-# Production nginx Configuration — Complete Reference
+# Production nginx Configuration - Complete Reference
 
 > **Stack:** nginx stable-alpine · NestJS API upstream · Let's Encrypt SSL · Ubuntu 22.04 · 1 vCPU / 2GB RAM
 
@@ -32,7 +32,7 @@
 
 ## Architecture Role
 
-nginx sits at the edge of the entire stack. It is the **only** service with ports exposed to the internet. Everything behind it — the NestJS API, Postgres, Redis — is on Docker's internal bridge network, unreachable from outside.
+nginx sits at the edge of the entire stack. It is the **only** service with ports exposed to the internet. Everything behind it - the NestJS API, Postgres, Redis - is on Docker's internal bridge network, unreachable from outside.
 
 ```
 Internet
@@ -65,7 +65,7 @@ events {
 
 ### `worker_processes auto`
 
-nginx spawns one worker process per CPU core by default with `auto`. On a 1 vCPU VPS this means exactly **one worker process**. There is no benefit to setting this higher than the CPU core count — extra workers would compete for the same core, adding context-switching overhead with no throughput gain.
+nginx spawns one worker process per CPU core by default with `auto`. On a 1 vCPU VPS this means exactly **one worker process**. There is no benefit to setting this higher than the CPU core count - extra workers would compete for the same core, adding context-switching overhead with no throughput gain.
 
 If you upgrade to 2 vCPU, `auto` automatically uses both cores without any config change.
 
@@ -73,7 +73,7 @@ If you upgrade to 2 vCPU, `auto` automatically uses both cores without any confi
 
 Maximum simultaneous connections **per worker process**. With one worker, this is the total connection ceiling for the entire nginx instance. Each connection consumes a file descriptor and approximately 1–4KB of memory in nginx's event loop.
 
-1024 connections on a 1 vCPU machine is already generous — the CPU will saturate from SSL handshakes and proxy work long before 1024 simultaneous connections are reached in practice. Raising this to 10000 would only matter if nginx were serving static files at scale, which it isn't here.
+1024 connections on a 1 vCPU machine is already generous - the CPU will saturate from SSL handshakes and proxy work long before 1024 simultaneous connections are reached in practice. Raising this to 10000 would only matter if nginx were serving static files at scale, which it isn't here.
 
 The OS file descriptor limit (`ulimit -n`) must be at least `worker_processes × worker_connections`. The nginx:alpine image sets this correctly by default.
 
@@ -109,7 +109,7 @@ This matters because TCP connection establishment has real cost:
 
 `keepalive 32` means the 33rd concurrent connection still opens a new TCP connection, but the first 32 concurrent requests reuse pooled connections. For an MVP this is more than sufficient.
 
-**Critical companion setting:** `proxy_http_version 1.1` and `proxy_set_header Connection ""` in the location block are **required** for keepalive to work. HTTP/1.0 has no persistent connections. HTTP/1.1 has them but the `Connection: close` header disables them — clearing the Connection header lets the keepalive pool function correctly.
+**Critical companion setting:** `proxy_http_version 1.1` and `proxy_set_header Connection ""` in the location block are **required** for keepalive to work. HTTP/1.0 has no persistent connections. HTTP/1.1 has them but the `Connection: close` header disables them - clearing the Connection header lets the keepalive pool function correctly.
 
 ---
 
@@ -128,7 +128,7 @@ tcp_nodelay on;
 
 By default nginx adds a `Server: nginx/1.27.3` header to every response, advertising the exact version number. This makes it trivial for automated scanners to target known CVEs for that version. `server_tokens off` reduces the header to `Server: nginx`, giving nothing away.
 
-This is security through obscurity — not a primary defense — but it's a free, zero-cost improvement that eliminates a class of automated opportunistic attacks.
+This is security through obscurity - not a primary defense - but it's a free, zero-cost improvement that eliminates a class of automated opportunistic attacks.
 
 ### `include mime.types`
 
@@ -136,7 +136,7 @@ Maps file extensions to Content-Type headers. Without this, nginx would serve ev
 
 ### `default_type application/octet-stream`
 
-Fallback Content-Type for files not in mime.types. For an API proxy this is rarely triggered, but it's the correct safe default — force download rather than attempt rendering of unknown content.
+Fallback Content-Type for files not in mime.types. For an API proxy this is rarely triggered, but it's the correct safe default - force download rather than attempt rendering of unknown content.
 
 ### `sendfile on`
 
@@ -150,7 +150,7 @@ Works together with `sendfile`. Tells the kernel to buffer outgoing data and sen
 
 ### `tcp_nodelay on`
 
-Disables Nagle's algorithm, which buffers small outgoing packets. For an API proxy, this is the right setting — you want low latency on small JSON responses, not packet coalescing. `tcp_nopush` and `tcp_nodelay` are complementary: `tcp_nopush` optimizes the initial send, then `tcp_nodelay` takes over for subsequent data.
+Disables Nagle's algorithm, which buffers small outgoing packets. For an API proxy, this is the right setting - you want low latency on small JSON responses, not packet coalescing. `tcp_nopush` and `tcp_nodelay` are complementary: `tcp_nopush` optimizes the initial send, then `tcp_nodelay` takes over for subsequent data.
 
 ---
 
@@ -166,13 +166,13 @@ reset_timedout_connection on;
 
 ### `keepalive_timeout 65`
 
-How long nginx keeps an idle HTTP keepalive connection open waiting for the next request from the same client. 65 seconds is the nginx default and a reasonable value — long enough for a browser to reuse the connection for follow-up API calls, short enough not to exhaust worker connection slots with idle browsers.
+How long nginx keeps an idle HTTP keepalive connection open waiting for the next request from the same client. 65 seconds is the nginx default and a reasonable value - long enough for a browser to reuse the connection for follow-up API calls, short enough not to exhaust worker connection slots with idle browsers.
 
 ### `client_header_timeout 10s`
 
 How long nginx waits to receive the complete HTTP request headers from the client. If a client connects and sends headers slowly (or not at all), nginx waits 10 seconds then closes the connection with 408 Request Timeout.
 
-This is a defense against **Slowloris attacks** — a class of DoS where an attacker opens many connections and sends headers one byte per second, eventually exhausting nginx's connection pool without triggering rate limiting (because they technically never complete a request).
+This is a defense against **Slowloris attacks** - a class of DoS where an attacker opens many connections and sends headers one byte per second, eventually exhausting nginx's connection pool without triggering rate limiting (because they technically never complete a request).
 
 ### `client_body_timeout 10s`
 
@@ -210,7 +210,7 @@ If you add file upload endpoints later, override this limit in a specific locati
 
 When nginx receives a request body, it first buffers it in memory. If the body exceeds `client_body_buffer_size`, nginx writes the overflow to a temporary file on disk before forwarding to upstream.
 
-Setting this to 16k means bodies up to 16KB are handled entirely in memory with no disk I/O. Since `client_max_body_size` is 64k, only requests between 16k and 64k will hit disk — and on an SSD this is fast. The 16k default is a sensible split that avoids disk writes for the vast majority of API requests.
+Setting this to 16k means bodies up to 16KB are handled entirely in memory with no disk I/O. Since `client_max_body_size` is 64k, only requests between 16k and 64k will hit disk - and on an SSD this is fast. The 16k default is a sensible split that avoids disk writes for the vast majority of API requests.
 
 ---
 
@@ -231,11 +231,11 @@ Enables response compression. The server compresses responses before sending the
 ### `gzip_types`
 
 Which Content-Types to compress. Note: `text/html` is always compressed by nginx regardless of this list. The types here cover:
-- `application/json` — API responses (the primary use case)
-- `text/plain` — health check and plain text responses
-- `application/javascript` / `text/css` — if any static assets are ever served
+- `application/json` - API responses (the primary use case)
+- `text/plain` - health check and plain text responses
+- `application/javascript` / `text/css` - if any static assets are ever served
 
-**Never compress:** images (JPEG, PNG, WebP are already compressed — re-compressing wastes CPU with no size gain), binary formats, or already-compressed archives.
+**Never compress:** images (JPEG, PNG, WebP are already compressed - re-compressing wastes CPU with no size gain), binary formats, or already-compressed archives.
 
 ### `gzip_min_length 256`
 
@@ -243,7 +243,7 @@ Only compress responses larger than 256 bytes. Compressing tiny responses (e.g. 
 
 ### `gzip_comp_level 4`
 
-Compression level from 1 (fastest, least compression) to 9 (slowest, best compression). Level 4 hits the knee of the curve — approximately 80% of the size reduction of level 9 at roughly 30% of the CPU cost. Levels 6–9 give diminishing returns on compression ratio while consuming significantly more CPU. On a 1 vCPU machine, CPU is your scarcest resource.
+Compression level from 1 (fastest, least compression) to 9 (slowest, best compression). Level 4 hits the knee of the curve - approximately 80% of the size reduction of level 9 at roughly 30% of the CPU cost. Levels 6–9 give diminishing returns on compression ratio while consuming significantly more CPU. On a 1 vCPU machine, CPU is your scarcest resource.
 
 ### `gzip_vary on`
 
@@ -267,7 +267,7 @@ The zone stores the state (a counter per IP) in shared memory accessible to all 
 
 ### `$binary_remote_addr`
 
-The key used to track each client — their IP address in binary form. Binary form uses 4 bytes for IPv4 vs 15 bytes for the string form, allowing the 10MB zone to hold more IP entries. 10MB can hold approximately 160,000 unique IP states — far more than this VPS will ever see.
+The key used to track each client - their IP address in binary form. Binary form uses 4 bytes for IPv4 vs 15 bytes for the string form, allowing the 10MB zone to hold more IP entries. 10MB can hold approximately 160,000 unique IP states - far more than this VPS will ever see.
 
 ### Two-zone strategy
 
@@ -307,7 +307,7 @@ Rate limiting counts **completed requests per unit time**. It does not limit how
 
 Without connection limiting, an attacker can:
 1. Open 500 TCP connections from one IP
-2. Send one slow request on each (passes rate limiting — only 1 req/s per connection)
+2. Send one slow request on each (passes rate limiting - only 1 req/s per connection)
 3. Hold 500 nginx worker connection slots indefinitely
 4. Real users can't connect because the connection pool is exhausted
 
@@ -315,7 +315,7 @@ Without connection limiting, an attacker can:
 
 ### `limit_conn_status 429`
 
-Same reasoning as `limit_req_status` — 429 is the correct status for connection limiting, not 503.
+Same reasoning as `limit_req_status` - 429 is the correct status for connection limiting, not 503.
 
 ---
 
@@ -329,7 +329,7 @@ ssl_session_tickets off;
 
 ### `ssl_session_cache shared:SSL:10m`
 
-TLS handshakes are expensive — they require asymmetric cryptography (RSA or ECDH key exchange) which is CPU-intensive. Session resumption allows a returning client to skip the full handshake by reusing a previously negotiated session.
+TLS handshakes are expensive - they require asymmetric cryptography (RSA or ECDH key exchange) which is CPU-intensive. Session resumption allows a returning client to skip the full handshake by reusing a previously negotiated session.
 
 `shared:SSL:10m` creates a 10MB shared memory cache named `SSL`, accessible to all nginx worker processes. A client that connected within the last day can resume their session in ~1/10th the CPU cost of a full handshake. On a 1 vCPU machine, this meaningfully reduces CPU pressure under returning traffic.
 
@@ -339,7 +339,7 @@ Sessions cached for up to 24 hours. A mobile app user who leaves and returns wit
 
 ### `ssl_session_tickets off`
 
-TLS session tickets are an alternative resumption mechanism where the server encrypts session state and sends it to the client (who presents it on reconnect). The problem: all workers must share the same ticket encryption key, and if that key is compromised, **all past sessions encrypted with it can be decrypted** — violating forward secrecy.
+TLS session tickets are an alternative resumption mechanism where the server encrypts session state and sends it to the client (who presents it on reconnect). The problem: all workers must share the same ticket encryption key, and if that key is compromised, **all past sessions encrypted with it can be decrypted** - violating forward secrecy.
 
 Disabling tickets forces use of the server-side session cache above, which does not have this property. Each session's keys are independent. This is the Mozilla recommendation for production servers.
 
@@ -370,13 +370,13 @@ Port 80 exists for exactly two things in production:
 
 ### `location /.well-known/acme-challenge/`
 
-Certbot's HTTP-01 challenge works by placing a token file at `/.well-known/acme-challenge/<token>` and having Let's Encrypt's servers fetch it over plain HTTP. If this request is redirected to HTTPS before the challenge is served, certificate renewal fails — and your site goes down when the certificate expires.
+Certbot's HTTP-01 challenge works by placing a token file at `/.well-known/acme-challenge/<token>` and having Let's Encrypt's servers fetch it over plain HTTP. If this request is redirected to HTTPS before the challenge is served, certificate renewal fails - and your site goes down when the certificate expires.
 
 The `root /var/www/certbot` serves files from that directory inside the nginx container. Your docker-compose file should bind-mount the Certbot webroot here, or you can use Certbot's standalone mode. The key point: this location block must be listed **before** the catch-all redirect.
 
 ### `return 301 https://$host$request_uri`
 
-301 Permanent Redirect. Browsers cache permanent redirects — a returning user who types `http://api.rodevsy.app` will be redirected to HTTPS by their browser before even sending a request to the server. This reduces server load for repeat visitors.
+301 Permanent Redirect. Browsers cache permanent redirects - a returning user who types `http://api.rodevsy.app` will be redirected to HTTPS by their browser before even sending a request to the server. This reduces server load for repeat visitors.
 
 `$request_uri` preserves the full path and query string: `http://api.rodevsy.app/users?page=2` redirects to `https://api.rodevsy.app/users?page=2`, not just the root.
 
@@ -401,9 +401,9 @@ The primary production server block. All API traffic flows through here.
 
 HTTP/2 is the second major revision of the HTTP protocol. Key improvements relevant to an API:
 
-**Multiplexing:** Multiple requests share a single TCP connection without head-of-line blocking. A frontend making 6 simultaneous API calls on page load sends all 6 over one connection rather than opening 6 connections. Each connection requires a TLS handshake — multiplexing eliminates 5 of those 6 handshakes.
+**Multiplexing:** Multiple requests share a single TCP connection without head-of-line blocking. A frontend making 6 simultaneous API calls on page load sends all 6 over one connection rather than opening 6 connections. Each connection requires a TLS handshake - multiplexing eliminates 5 of those 6 handshakes.
 
-**Header compression (HPACK):** HTTP/2 compresses headers. API requests with JWT tokens in the Authorization header benefit significantly — a 512-byte JWT sent on every request is compressed to a few bytes after the first request (headers are delta-encoded against previously seen headers).
+**Header compression (HPACK):** HTTP/2 compresses headers. API requests with JWT tokens in the Authorization header benefit significantly - a 512-byte JWT sent on every request is compressed to a few bytes after the first request (headers are delta-encoded against previously seen headers).
 
 **Binary framing:** HTTP/2 uses binary rather than text framing, which is more efficient to parse and less error-prone than HTTP/1.1's text format.
 
@@ -426,11 +426,11 @@ ssl_prefer_server_ciphers off;
 
 `fullchain.pem` includes your certificate **and** the intermediate CA certificate chain. `cert.pem` includes only your certificate.
 
-Clients verify your certificate by tracing a chain from your cert up to a trusted root CA. If you serve only `cert.pem`, clients that don't have Let's Encrypt's intermediate cert cached must fetch it separately — or fail validation entirely. Always use `fullchain.pem` in production.
+Clients verify your certificate by tracing a chain from your cert up to a trusted root CA. If you serve only `cert.pem`, clients that don't have Let's Encrypt's intermediate cert cached must fetch it separately - or fail validation entirely. Always use `fullchain.pem` in production.
 
 ### `ssl_protocols TLSv1.2 TLSv1.3`
 
-Drops TLS 1.0 and 1.1, which have known vulnerabilities (POODLE, BEAST, others). The clients that don't support TLS 1.2 are essentially Internet Explorer 8 on Windows XP — not a realistic concern for an API.
+Drops TLS 1.0 and 1.1, which have known vulnerabilities (POODLE, BEAST, others). The clients that don't support TLS 1.2 are essentially Internet Explorer 8 on Windows XP - not a realistic concern for an API.
 
 TLS 1.3 is preferred when both sides support it: faster handshakes (1 RTT vs 2 RTT for TLS 1.2), better security defaults, and no legacy cipher suite negotiation.
 
@@ -446,7 +446,7 @@ SHA256/384 - Message authentication
 CHACHA20-POLY1305 - Alternative to AES (faster on devices without AES hardware acceleration)
 ```
 
-**ECDHE** (Ephemeral) is the critical component — it provides **forward secrecy**. Each TLS session generates a fresh key pair that is discarded after the session. Even if your private key is stolen years later, past session traffic cannot be decrypted because the ephemeral session keys no longer exist.
+**ECDHE** (Ephemeral) is the critical component - it provides **forward secrecy**. Each TLS session generates a fresh key pair that is discarded after the session. Even if your private key is stolen years later, past session traffic cannot be decrypted because the ephemeral session keys no longer exist.
 
 **CHACHA20-POLY1305** is included because mobile devices (especially older Android) often lack hardware AES acceleration. CHACHA20 is faster in software than AES on these devices, giving mobile users better performance without sacrificing security.
 
@@ -456,7 +456,7 @@ What's excluded: RC4 (broken), 3DES (SWEET32 vulnerability), CBC mode ciphers wi
 
 When `on`, nginx imposes its cipher ordering on the client. When `off`, the client's preferred cipher is used if it appears in the server's list.
 
-For TLS 1.3, this setting is ignored — the client always chooses from a small set of equally secure options. For TLS 1.2, turning it `off` lets modern clients (which know which cipher runs fastest on their hardware) choose optimally. Since all ciphers in the list are strong, there is no security reason to override the client's preference.
+For TLS 1.3, this setting is ignored - the client always chooses from a small set of equally secure options. For TLS 1.2, turning it `off` lets modern clients (which know which cipher runs fastest on their hardware) choose optimally. Since all ciphers in the list are strong, there is no security reason to override the client's preference.
 
 ---
 
@@ -471,11 +471,11 @@ add_header Referrer-Policy no-referrer always;
 
 ### `Strict-Transport-Security` (HSTS)
 
-Instructs browsers to **never** attempt an HTTP connection to this domain for the next 63,072,000 seconds (2 years). After a browser sees this header once, it internally upgrades all HTTP requests to HTTPS before sending them — no round trip to the server needed.
+Instructs browsers to **never** attempt an HTTP connection to this domain for the next 63,072,000 seconds (2 years). After a browser sees this header once, it internally upgrades all HTTP requests to HTTPS before sending them - no round trip to the server needed.
 
 This eliminates a class of attacks where an attacker on the same network (coffee shop WiFi) intercepts the initial HTTP request before the redirect fires.
 
-`includeSubDomains` extends the policy to all subdomains. Make sure all your subdomains actually serve HTTPS before enabling this — any HTTP-only subdomain becomes unreachable from browsers that have cached the HSTS policy.
+`includeSubDomains` extends the policy to all subdomains. Make sure all your subdomains actually serve HTTPS before enabling this - any HTTP-only subdomain becomes unreachable from browsers that have cached the HSTS policy.
 
 **Warning:** Do not set this with a long `max-age` until you're confident SSL renewal is working correctly. A misconfigured certificate + cached HSTS = your site is unreachable for 2 years. Start with `max-age=300` (5 minutes) during initial setup and increase once you're confident.
 
@@ -520,7 +520,7 @@ healthcheck:
   test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/"]
 ```
 
-Wait — actually, nginx's healthcheck is handled differently. The `/gateway` location is primarily used for external uptime monitoring (Uptime Robot, Better Uptime, etc.) and manual verification that nginx is running.
+Wait - actually, nginx's healthcheck is handled differently. The `/gateway` location is primarily used for external uptime monitoring (Uptime Robot, Better Uptime, etc.) and manual verification that nginx is running.
 
 ### `access_log off`
 
@@ -556,7 +556,7 @@ location / {
 
 Enforces the connection limit defined in the http block. Any single IP is capped at 20 simultaneous open connections to this location. The 21st connection gets a 429 response immediately.
 
-### `limit_req` — burst and nodelay
+### `limit_req` - burst and nodelay
 
 ```nginx
 limit_req zone=api_limit_short burst=10 nodelay;
@@ -567,13 +567,13 @@ limit_req zone=api_limit_long  burst=20;
 
 The `burst` parameter defines a queue that absorbs requests exceeding the rate limit before they're rejected. Without `nodelay`, excess requests are queued and delayed to satisfy the rate. With `nodelay`, burst requests are forwarded immediately but consume burst slots.
 
-In practice: a user who sends 15 requests in one second gets all 15 forwarded immediately (5 within rate + 10 from burst). The 16th request in that second gets a 429. The burst slot replenishes at 5r/s — after 2 seconds, 10 new burst slots are available.
+In practice: a user who sends 15 requests in one second gets all 15 forwarded immediately (5 within rate + 10 from burst). The 16th request in that second gets a 429. The burst slot replenishes at 5r/s - after 2 seconds, 10 new burst slots are available.
 
 This is the right behavior for a legitimate frontend making parallel API calls on page load. Without `burst`, a React app hydrating with 8 API calls would throttle itself.
 
 **No `nodelay` on the long zone:**
 
-The long zone does not have `nodelay`. Requests exceeding 60r/m are queued, introducing artificial delay rather than immediate rejection. This is intentional — slow scrapers get progressively slower responses rather than a clean 429 they can simply catch and retry.
+The long zone does not have `nodelay`. Requests exceeding 60r/m are queued, introducing artificial delay rather than immediate rejection. This is intentional - slow scrapers get progressively slower responses rather than a clean 429 they can simply catch and retry.
 
 ---
 
@@ -604,7 +604,7 @@ CORS headers are handled at nginx for two reasons:
 
 1. **Preflight requests never reach the API.** `OPTIONS` requests are terminated at nginx with a 204 response, saving a full round-trip through the proxy, NestJS middleware stack, and back. Under heavy traffic this matters.
 
-2. **Centralized policy.** CORS origin is a deployment concern, not an application concern. Changing allowed origins requires updating one line in `nginx.conf` and reloading nginx (`nginx -s reload`) — no application rebuild or deploy needed.
+2. **Centralized policy.** CORS origin is a deployment concern, not an application concern. Changing allowed origins requires updating one line in `nginx.conf` and reloading nginx (`nginx -s reload`) - no application rebuild or deploy needed.
 
 If NestJS also has CORS configured, disable it there. Duplicate CORS headers from both nginx and NestJS will cause browser errors (`The 'Access-Control-Allow-Origin' header contains multiple values`).
 
@@ -620,7 +620,7 @@ Required for the browser to include cookies and the `Authorization` header in cr
 
 ### `Access-Control-Max-Age: 1728000`
 
-Browsers cache the preflight response for this many seconds (20 days). Without this, every cross-origin request with a non-simple Content-Type (like `application/json`) triggers a preflight OPTIONS request first. With 20-day caching, the preflight fires once and the result is cached — eliminating the extra round-trip for returning users.
+Browsers cache the preflight response for this many seconds (20 days). Without this, every cross-origin request with a non-simple Content-Type (like `application/json`) triggers a preflight OPTIONS request first. With 20-day caching, the preflight fires once and the result is cached - eliminating the extra round-trip for returning users.
 
 ### `Access-Control-Allow-Headers`
 
@@ -628,7 +628,7 @@ The `Fingerprint` header is your custom header. Any non-standard header your cli
 
 ### Why `OPTIONS` inside an `if` block?
 
-nginx's `if` directive is famously problematic — it has unexpected behavior in many contexts. However, `if ($request_method = OPTIONS)` with only `add_header` and `return` inside is a well-established exception that behaves correctly. The nginx documentation warning about `if` applies to more complex scenarios involving `proxy_pass` and `rewrite` inside `if` blocks.
+nginx's `if` directive is famously problematic - it has unexpected behavior in many contexts. However, `if ($request_method = OPTIONS)` with only `add_header` and `return` inside is a well-established exception that behaves correctly. The nginx documentation warning about `if` applies to more complex scenarios involving `proxy_pass` and `rewrite` inside `if` blocks.
 
 ---
 
@@ -647,7 +647,7 @@ proxy_hide_header  X-Powered-By;
 
 ### `proxy_http_version 1.1`
 
-Required for upstream keepalive connections (see upstream block). HTTP/1.0 has no persistent connections — without this, keepalive is silently disabled.
+Required for upstream keepalive connections (see upstream block). HTTP/1.0 has no persistent connections - without this, keepalive is silently disabled.
 
 ### `proxy_set_header Connection ""`
 
@@ -655,13 +655,13 @@ HTTP/1.1 allows the `Connection: keep-alive` header to request persistent connec
 
 ### `proxy_set_header Host $host`
 
-Forwards the original `Host` header from the client to NestJS. Without this, NestJS sees `api:8080` (the upstream address) as the Host, which breaks any logic that depends on the hostname — link generation, JWT issuer validation, tenant routing.
+Forwards the original `Host` header from the client to NestJS. Without this, NestJS sees `api:8080` (the upstream address) as the Host, which breaks any logic that depends on the hostname - link generation, JWT issuer validation, tenant routing.
 
 ### `X-Real-IP` and `X-Forwarded-For`
 
 NestJS sees all connections originating from nginx's Docker IP, not the real client IP. These headers pass the original client IP through to the application.
 
-`X-Real-IP` contains the single connecting client IP. `X-Forwarded-For` is a comma-separated list of all IPs in the proxy chain, useful when there are multiple proxy layers (CDN → nginx → API). NestJS should read these headers for rate limiting, audit logging, and geolocation — not `req.ip` which will always be nginx's internal IP.
+`X-Real-IP` contains the single connecting client IP. `X-Forwarded-For` is a comma-separated list of all IPs in the proxy chain, useful when there are multiple proxy layers (CDN → nginx → API). NestJS should read these headers for rate limiting, audit logging, and geolocation - not `req.ip` which will always be nginx's internal IP.
 
 In NestJS, enable trusted proxy in `main.ts`:
 ```typescript
@@ -674,7 +674,7 @@ Tells NestJS whether the original client connected via HTTP or HTTPS. Without th
 
 ### `proxy_hide_header X-Powered-By`
 
-NestJS adds `X-Powered-By: Express` to all responses (because it's built on Express under the hood). This header advertises the framework and version to potential attackers. Hiding it follows the same principle as `server_tokens off` — don't give away fingerprinting information for free.
+NestJS adds `X-Powered-By: Express` to all responses (because it's built on Express under the hood). This header advertises the framework and version to potential attackers. Hiding it follows the same principle as `server_tokens off` - don't give away fingerprinting information for free.
 
 ---
 
@@ -688,7 +688,7 @@ proxy_read_timeout    30s;
 
 ### `proxy_connect_timeout 5s`
 
-How long nginx waits to establish a TCP connection to the upstream (NestJS). If the API container is down or restarting, nginx fails fast after 5 seconds with a 502 Bad Gateway rather than holding the client connection open indefinitely. On Docker's bridge network, a connection to a running container happens in microseconds — a 5-second timeout only fires when the container is actually down.
+How long nginx waits to establish a TCP connection to the upstream (NestJS). If the API container is down or restarting, nginx fails fast after 5 seconds with a 502 Bad Gateway rather than holding the client connection open indefinitely. On Docker's bridge network, a connection to a running container happens in microseconds - a 5-second timeout only fires when the container is actually down.
 
 ### `proxy_send_timeout 10s`
 
@@ -698,7 +698,7 @@ How long nginx waits between successive write operations when sending a request 
 
 How long nginx waits for NestJS to send a response after forwarding the request. This is the most important of the three timeouts.
 
-30 seconds is generous for standard REST endpoints — they should respond in milliseconds to seconds. The 30-second ceiling prevents a slow NestJS response (from a locked database query, runaway computation, or memory pressure) from holding nginx worker connections open indefinitely.
+30 seconds is generous for standard REST endpoints - they should respond in milliseconds to seconds. The 30-second ceiling prevents a slow NestJS response (from a locked database query, runaway computation, or memory pressure) from holding nginx worker connections open indefinitely.
 
 **If you add specific endpoint types, override per location:**
 
@@ -739,10 +739,10 @@ This configuration defends against the following:
 
 **What this config does NOT defend against:**
 
-- **Application-level attacks** (SQL injection, XSS, IDOR) — these must be handled in NestJS
-- **Distributed DDoS** — per-IP limits are ineffective against botnets; requires a CDN (Cloudflare) or upstream filtering
-- **Authenticated abuse** — a legitimate user hammering endpoints passes rate limiting unless you add per-user limits in NestJS
-- **Zero-day nginx vulnerabilities** — keep the image updated with `docker compose pull`
+- **Application-level attacks** (SQL injection, XSS, IDOR) - these must be handled in NestJS
+- **Distributed DDoS** - per-IP limits are ineffective against botnets; requires a CDN (Cloudflare) or upstream filtering
+- **Authenticated abuse** - a legitimate user hammering endpoints passes rate limiting unless you add per-user limits in NestJS
+- **Zero-day nginx vulnerabilities** - keep the image updated with `docker compose pull`
 
 ---
 
@@ -787,7 +787,7 @@ set_real_ip_from 103.21.244.0/22;  # Cloudflare IP ranges
 real_ip_header CF-Connecting-IP;
 ```
 
-And tighten CORS — the CDN handles the first hop, so your nginx sees requests from Cloudflare IPs, not end users.
+And tighten CORS - the CDN handles the first hop, so your nginx sees requests from Cloudflare IPs, not end users.
 
 ### You want to add response caching for public endpoints
 

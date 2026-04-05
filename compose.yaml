@@ -26,6 +26,8 @@ services:
 
   api:
     build: .
+    ports:
+      - 8080:8080
     environment:
       - PORT=8080
       - MAX_HEAP_THRESHOLD_MB=300
@@ -47,7 +49,7 @@ services:
       - CACHE_POOL_MIN_CONNECTIONS=5
       - CACHE_POOL_MAX_CONNECTIONS=100
     healthcheck:
-      test: ["CMD","wget","-q","-O","-","http://localhost:8080/"]
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:8080/']
       interval: 20s
       timeout: 10s
       retries: 5
@@ -68,6 +70,8 @@ services:
         condition: service_completed_successfully
 
   dev_db:
+    ports:
+      - 5432:5432
     image: postgres:18-alpine
     environment:
       - POSTGRES_USER=postgres
@@ -84,6 +88,8 @@ services:
       retries: 5
 
   dev_cache:
+    ports:
+      - 6379:6379
     image: redis:8.4.0-alpine
     command: >
       sh -c 'redis-server

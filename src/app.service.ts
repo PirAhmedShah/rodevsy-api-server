@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+// import type { Request } from 'express';
 
 @Injectable()
 export class AppService {
@@ -7,46 +8,46 @@ export class AppService {
     this.logger.debug('Constructed.');
   }
 
-  extractRequestInfo(req: Express.Request, ipFromDecorator: string) {
-    return {
-      // ---- IP RELATED ----
-      ip_decorator: ipFromDecorator, // Nest resolved IP
-      req_ip: req.ip, // Express resolved IP
-      x_forwarded_for: req.headers['x-forwarded-for'],
-      x_real_ip: req.headers['x-real-ip'],
-      remote_address: req.socket.remoteAddress,
+  // ExtractRequestInfo(req: Request, ipFromDecorator: string) {
+  //   Return {
+  //     // ---- IP RELATED ----
+  //     Ip_decorator: ipFromDecorator, // Nest resolved IP
+  //     Req_ip: req.ip, // Express resolved IP
+  //     X_forwarded_for: req.headers['x-forwarded-for'],
+  //     X_real_ip: req.headers['x-real-ip'],
+  //     Remote_address: req.socket.remoteAddress,
 
-      // ---- NETWORK ----
-      protocol: req.protocol,
-      hostname: req.hostname,
-      method: req.method,
-      originalUrl: req.originalUrl,
-      baseUrl: req.baseUrl,
-      path: req.path,
+  //     // ---- NETWORK ----
+  //     Protocol: req.protocol,
+  //     Hostname: req.hostname,
+  //     Method: req.method,
+  //     OriginalUrl: req.originalUrl,
+  //     BaseUrl: req.baseUrl,
+  //     Path: req.path,
 
-      // ---- HEADERS ----
-      userAgent: req.headers['user-agent'],
-      referer: req.headers['referer'],
-      contentType: req.headers['content-type'],
-      authorization: req.headers['authorization'] ? 'present' : null,
+  //     // ---- HEADERS ----
+  //     UserAgent: req.headers['user-agent'],
+  //     Referer: req.headers['referer'],
+  //     ContentType: req.headers['content-type'],
+  //     Authorization: req.headers['authorization'] ? 'present' : null,
 
-      // ---- CONNECTION ----
-      httpVersion: req.httpVersion,
-      secure: req.secure,
-      xhr: req.xhr,
+  //     // ---- CONNECTION ----
+  //     HttpVersion: req.httpVersion,
+  //     Secure: req.secure,
+  //     Xhr: req.xhr,
 
-      // ---- COOKIES ----
-      cookies: req.cookies,
-      signedCookies: req.signedCookies,
+  //     // ---- COOKIES ----
+  //     Cookies: req.cookies,
+  //     SignedCookies: req.signedCookies,
 
-      // ---- QUERY & PARAMS ----
-      query: req.query,
-      params: req.params,
+  //     // ---- QUERY & PARAMS ----
+  //     Query: req.query as Record<string, unknown>,
+  //     Params: req.params as Record<string, unknown>,
 
-      // ---- TIMING ----
-      timestamp: new Date().toISOString(),
-    };
-  }
+  //     // ---- TIMING ----
+  //     Timestamp: new Date().toISOString(),
+  //   };
+  // }
 
   getOK(): string {
     return 'OK';

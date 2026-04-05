@@ -4,21 +4,27 @@ import { INestApplication, LogLevel, ValidationPipe } from '@nestjs/common';
 import cookiesParser from 'cookie-parser';
 import { ExpressAdapter } from '@nestjs/platform-express';
 function getLoggerLevels(): LogLevel[] {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  if (!isProduction && !isDevelopment)
+  const isProduction = process.env.NODE_ENV === 'production',
+    isDevelopment = process.env.NODE_ENV === 'development',
+    isTest = process.env.NODE_ENV === 'test';
+
+  if (!isProduction && !isDevelopment && !isTest)
     throw new Error(
-      "FATAL: NODE_ENV enviroment variable must be either 'production' or 'development'!",
+      `FATAL: NODE_ENV=${process.env.NODE_ENV ?? 'undefined'} is INVALID. It must be either 'production', 'test' or 'development'`,
     );
 
-  const PRODUCTION_LOG_LEVELS: LogLevel[] = ['fatal', 'error', 'warn', 'log'];
-  const DEVELOPMENT_LOG_LEVELS: LogLevel[] = [
-    ...PRODUCTION_LOG_LEVELS,
-    'debug',
-    'verbose',
-  ];
+  const PRODUCTION_LOG_LEVELS: LogLevel[] = ['fatal', 'error', 'warn', 'log'],
+    DEVELOPMENT_LOG_LEVELS: LogLevel[] = [
+      ...PRODUCTION_LOG_LEVELS,
+      'debug',
+      'verbose',
+    ];
 
-  return isProduction ? PRODUCTION_LOG_LEVELS : DEVELOPMENT_LOG_LEVELS;
+  return isProduction
+    ? PRODUCTION_LOG_LEVELS
+    : isDevelopment
+      ? DEVELOPMENT_LOG_LEVELS
+      : [];
 }
 
 async function bootstrap() {
@@ -29,13 +35,6 @@ async function bootstrap() {
     },
   );
 
-  // main.ts
-  // * Handled by Nginx Gateway...
-  // app.enableCors({
-  //   origin: 'http://localhost:3000',
-  //   credentials: true,
-  //   allowedHeaders: ['Content-Type', 'Authorization', 'Fingerprint'],
-  // });
   app.use(cookiesParser());
   app.useGlobalPipes(
     new ValidationPipe({

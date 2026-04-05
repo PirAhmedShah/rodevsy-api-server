@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
-import { DbModule } from './db/db.module';
-import { ConfigModule } from '@nestjs/config';
-import { HealthModule } from './health/health.module';
-import { HashModule } from './hash/hash.module';
-import { JwtModule } from './jwt/jwt.module';
-import { CacheModule } from './cache/cache.module';
+import { AuthModule } from '@/features/auth/auth.module';
+import { CacheModule } from '@/infrastructure/cache/cache.module';
+import { DbModule } from '@/infrastructure/db/db.module';
+import { HashModule } from '@/infrastructure/hash/hash.module';
+import { JwtModule } from '@/infrastructure/jwt/jwt.module';
+import { UserModule } from './core/user/user.module';
 
 @Module({
   imports: [
@@ -18,9 +18,11 @@ import { CacheModule } from './cache/cache.module';
     HashModule,
     JwtModule,
     DbModule,
-    AuthModule,
-    HealthModule,
     CacheModule,
+
+    UserModule,
+
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
