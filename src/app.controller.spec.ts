@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { Logger } from '@nestjs/common';
+import { SilentLogger } from './common/utils';
 
+Logger.overrideLogger([]);
 describe('AppController', () => {
   let appController: AppController;
 
@@ -9,7 +12,9 @@ describe('AppController', () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
       providers: [AppService],
-    }).compile();
+    })
+      .setLogger(SilentLogger)
+      .compile();
 
     appController = app.get<AppController>(AppController);
   });
