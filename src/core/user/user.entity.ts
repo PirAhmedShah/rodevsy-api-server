@@ -1,6 +1,4 @@
-import { SignupDto } from '@/features/auth/dtos';
-
-type UserData = Omit<SignupDto, 'password'> & { hashedPassword: string };
+import { UserData } from './user.type';
 
 export class User {
   constructor(

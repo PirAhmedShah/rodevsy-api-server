@@ -10,8 +10,12 @@ import { User, UserLoginLog } from './user.entity';
 import { SilentLogger } from '@/common/utils';
 import { UserGender, UserType } from './user.enum';
 
+interface pgError extends Error {
+  code?: string;
+  detail?: string;
+}
 describe('UserRepository', () => {
-  let dbService: DbService, repository: UserRepository;
+  let repository: UserRepository;
 
   const mockDbService = {
     query: jest.fn(),
@@ -28,7 +32,6 @@ describe('UserRepository', () => {
       .compile();
 
     repository = module.get<UserRepository>(UserRepository);
-    dbService = module.get<DbService>(DbService);
     jest.clearAllMocks();
   });
 
@@ -57,8 +60,8 @@ describe('UserRepository', () => {
     });
 
     it('should throw ConflictException on unique constraint violation', async () => {
-      const dbError = new Error('Unique violation');
-      (dbError as any).code = PostgresErrorCode.UniqueViolation;
+      const dbError: pgError = new Error('Unique violation');
+      dbError.code = PostgresErrorCode.UniqueViolation;
       mockDbService.query.mockRejectedValue(dbError);
 
       await expect(repository.save(mockUser)).rejects.toThrow(
@@ -138,8 +141,8 @@ describe('UserRepository', () => {
     });
 
     it('should throw InternalServerErrorException on InsufficientPrivilege', async () => {
-      const dbError = new Error('Permission denied');
-      (dbError as any).code = PostgresErrorCode.InsufficientPrivilege;
+      const dbError: pgError = new Error('Permission denied');
+      dbError.code = PostgresErrorCode.InsufficientPrivilege;
       mockDbService.query.mockRejectedValue(dbError);
 
       await expect(repository.save(mockUser)).rejects.toThrow(

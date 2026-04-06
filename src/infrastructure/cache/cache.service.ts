@@ -13,13 +13,13 @@ import { RedisClientPoolType, createClientPool } from 'redis';
 @Injectable()
 export class CacheService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(CacheService.name);
-  pool!: RedisClientPoolType;
+  pool?: RedisClientPoolType;
 
   constructor(private readonly configService: ConfigService) {
     this.logger.debug('Constructed.');
   }
 
-  async onModuleInit() {
+  async onModuleInit(): Promise<void> {
     const CACHE_POOL_MAX_CONNECTIONS = Number(
         this.configService.getOrThrow('CACHE_POOL_MAX_CONNECTIONS'),
       ),
@@ -34,7 +34,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
 
     this.pool = createClientPool(
       {
-        url: `redis://:${this.readPassword()}@${this.configService.getOrThrow('CACHE_HOST')}:${this.configService.getOrThrow('CACHE_PORT')}`,
+        url: `redis://:${this.readPassword()}@${this.configService.getOrThrow<string>('CACHE_HOST')}:${this.configService.getOrThrow<string>('CACHE_PORT')}`,
       },
       {
         maximum: CACHE_POOL_MAX_CONNECTIONS,
@@ -60,14 +60,18 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
    * Validates the connection to Redis.
    * Exits the process if the initial connection fails, matching DbService logic.
    */
-  async performHealthCheck() {
+  async performHealthCheck(): Promise<void> {
     this.logger.warn('Checking Health...');
     try {
+      if (!this.pool)
+        throw new Error(
+          'Attempted to check health before cache pool initialization.',
+        );
       await this.pool.ping();
       this.logger.log('Healthy.');
     } catch (e) {
       this.logger.fatal(
-        `Failed Liveness Probe check, Terminating with code ${ExitCode.CACHE_CONNECTION_ERROR} (${ExitCodesDescription[ExitCode.CACHE_CONNECTION_ERROR]})`,
+        `Failed Liveness Probe check, Terminating with code ${String(ExitCode.CACHE_CONNECTION_ERROR)} (${ExitCodesDescription[ExitCode.CACHE_CONNECTION_ERROR]})`,
         e,
       );
 
@@ -75,7 +79,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async onModuleDestroy() {
+  async onModuleDestroy(): Promise<void> {
     this.logger.debug('Closing...');
     if (this.pool) {
       this.logger.debug('Connection is open!, closing it...');
@@ -99,7 +103,10 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
 
     try {
       this.logger.debug(`Executing... [ID: ${id}]`);
-
+      if (!this.pool)
+        throw new Error(
+          'Attempted to execute before cache pool initialization.',
+        );
       return await fn(this.pool);
     } catch (error) {
       this.logger.error(
@@ -130,8 +137,11 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     try {
       const path = this.configService.getOrThrow<string>('CACHE_PASSWORD_FILE');
       return readFileSync(path, 'utf-8').trim();
-    } catch (e) {
-      throw new Error(`Could not read CACHE password file: ${e}`);
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e.message : e;
+      throw new Error(`Could not read CACHE password file: ${String(error)}`, {
+        cause: e,
+      });
     }
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { DbService } from './db.service';
@@ -5,13 +6,6 @@ import { Pool, QueryResult, QueryResultRow } from 'pg';
 import * as fs from 'fs';
 import { SilentLogger } from '@/common/utils';
 
-// Mock the pg Pool and fs modules
-interface MockPool {
-  query: <R extends QueryResultRow = QueryResultRow>(
-    text: string,
-    params?: unknown[],
-  ) => Promise<QueryResult<R>>;
-}
 jest.mock('pg', () => {
   const mPool = {
     on: jest.fn().mockReturnThis(),
@@ -21,6 +15,13 @@ jest.mock('pg', () => {
   return { Pool: jest.fn(() => mPool) };
 });
 jest.mock('fs');
+
+/** Cast a partial pg result shape to QueryResult without full field list */
+function asQueryResult<R extends QueryResultRow>(
+  partial: Partial<QueryResult<R>>,
+): QueryResult<R> {
+  return partial as unknown as QueryResult<R>;
+}
 
 describe('DbService', () => {
   let configService: ConfigService;
@@ -55,7 +56,6 @@ describe('DbService', () => {
     service = module.get<DbService>(DbService);
     configService = module.get<ConfigService>(ConfigService);
 
-    // Cast the instantiated mock to the correct type
     mockPool = new Pool() as jest.Mocked<Pool>;
 
     jest.spyOn(process, 'kill').mockImplementation(() => true as never);
@@ -69,9 +69,8 @@ describe('DbService', () => {
 
   describe('onModuleInit()', () => {
     it('should initialize the pool and perform a successful health check', async () => {
-      mockPool.query.mockResolvedValueOnce({
-        rows: [{ '1': 1 }],
-      });
+      const poolQuery = mockPool.query as jest.Mock;
+      poolQuery.mockResolvedValueOnce(asQueryResult({ rows: [{ '1': 1 }] }));
 
       await service.onModuleInit();
 
@@ -83,12 +82,13 @@ describe('DbService', () => {
           max: 10,
         }),
       );
-      expect(mockPool.query).toHaveBeenCalledWith('SELECT 1');
+      expect(poolQuery).toHaveBeenCalledWith('SELECT 1');
       expect(service.pool).toBeDefined();
     });
 
     it('should kill process if health check fails', async () => {
-      mockPool.query.mockRejectedValueOnce(new Error('Connection Refused'));
+      const poolQuery = mockPool.query as jest.Mock;
+      poolQuery.mockRejectedValueOnce(new Error('Connection Refused'));
 
       await service.onModuleInit();
 
@@ -99,7 +99,7 @@ describe('DbService', () => {
     it('should throw error if numeric config values are NaN', async () => {
       jest.spyOn(configService, 'getOrThrow').mockImplementation((key) => {
         if (key === 'DB_PORT') return 'not-a-number';
-        return ENV[key];
+        return ENV[key as string];
       });
 
       await expect(service.onModuleInit()).rejects.toThrow(
@@ -110,15 +110,15 @@ describe('DbService', () => {
 
   describe('query()', () => {
     beforeEach(async () => {
-      mockPool.query.mockResolvedValue({ rows: [] } as PoolQueryResult<any>);
+      const poolQuery = mockPool.query as jest.Mock;
+      poolQuery.mockResolvedValue(asQueryResult({ rows: [] }));
       await service.onModuleInit();
     });
 
     it('should execute a query and return results', async () => {
-      const mockResult = {
-        rows: [{ id: 1, name: 'Test' }],
-      } as PoolQueryResult<any>;
-      mockPool.query.mockResolvedValueOnce(mockResult);
+      const poolQuery = mockPool.query as jest.Mock;
+      const mockResult = asQueryResult({ rows: [{ id: 1, name: 'Test' }] });
+      poolQuery.mockResolvedValueOnce(mockResult);
 
       const result = await service.query(
         'SELECT * FROM users WHERE id = $1',
@@ -126,15 +126,16 @@ describe('DbService', () => {
       );
 
       expect(result).toBe(mockResult);
-      expect(mockPool.query).toHaveBeenCalledWith(
+      expect(poolQuery).toHaveBeenCalledWith(
         'SELECT * FROM users WHERE id = $1',
         [1],
       );
     });
 
     it('should log and re-throw error if query fails', async () => {
+      const poolQuery = mockPool.query as jest.Mock;
       const dbError = new Error('Syntax Error');
-      mockPool.query.mockRejectedValueOnce(dbError);
+      poolQuery.mockRejectedValueOnce(dbError);
 
       await expect(service.query('INVALID SQL')).rejects.toThrow(dbError);
     });
@@ -158,16 +159,15 @@ describe('DbService', () => {
     it('should kill process when pool emits an error event', async () => {
       let errorHandler: ((err: Error) => void) | undefined;
 
-      mockPool.on.mockImplementation(
-        (event: string, cb: (...args: any[]) => void) => {
-          if (event === 'error') errorHandler = cb as (err: Error) => void;
+      (mockPool.on as jest.Mock).mockImplementation(
+        (event: string, cb: (err: Error) => void) => {
+          if (event === 'error') errorHandler = cb;
           return mockPool;
         },
       );
 
-      mockPool.query.mockResolvedValue({
-        rows: [{ '1': 1 }],
-      } as PoolQueryResult<any>);
+      const poolQuery = mockPool.query as jest.Mock;
+      poolQuery.mockResolvedValue(asQueryResult({ rows: [{ '1': 1 }] }));
 
       await service.onModuleInit();
 
@@ -192,7 +192,8 @@ describe('DbService', () => {
 
   describe('performHealthChecks() - non-Error thrown value', () => {
     it('should handle string thrown during health check and still kill process', async () => {
-      mockPool.query.mockRejectedValueOnce('string error');
+      const poolQuery = mockPool.query as jest.Mock;
+      poolQuery.mockRejectedValueOnce('string error');
 
       await service.onModuleInit();
 
@@ -202,7 +203,8 @@ describe('DbService', () => {
 
   describe('onModuleDestroy()', () => {
     it('should close the pool if it exists', async () => {
-      mockPool.query.mockResolvedValue({ rows: [] } as PoolQueryResult<any>);
+      const poolQuery = mockPool.query as jest.Mock;
+      poolQuery.mockResolvedValue(asQueryResult({ rows: [] }));
       await service.onModuleInit();
       await service.onModuleDestroy();
 

@@ -6,24 +6,26 @@ import { JwtAudience, JwtType } from '@/infrastructure/jwt/jwt.enum';
 import { SilentLogger } from '@/common/utils';
 
 describe('UserCacheRepository', () => {
-  let cacheService: CacheService, repository: UserCacheRepository;
+  let repository: UserCacheRepository;
 
   const mockMulti = {
-      zRemRangeByScore: jest.fn().mockReturnThis(),
-      zAdd: jest.fn().mockReturnThis(),
-      expire: jest.fn().mockReturnThis(),
-      exec: jest.fn().mockResolvedValue([]),
-    },
-    mockRedisClient = {
-      multi: jest.fn(() => mockMulti),
-      zScore: jest.fn(),
-      zRem: jest.fn(),
-    },
-    mockCacheService = {
-      execute: jest.fn((fn) => {
-        return fn(mockRedisClient);
-      }),
-    };
+    zRemRangeByScore: jest.fn().mockReturnThis(),
+    zAdd: jest.fn().mockReturnThis(),
+    expire: jest.fn().mockReturnThis(),
+    exec: jest.fn().mockResolvedValue([]),
+  };
+  const mockRedisClient = {
+    multi: jest.fn(() => mockMulti),
+    zScore: jest.fn(),
+    zRem: jest.fn(),
+  };
+  type MockClient = typeof mockRedisClient;
+
+  const mockCacheService = {
+    execute: jest.fn(<T>(fn: (client: MockClient) => T): T => {
+      return fn(mockRedisClient);
+    }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -36,7 +38,6 @@ describe('UserCacheRepository', () => {
       .compile();
 
     repository = module.get<UserCacheRepository>(UserCacheRepository);
-    cacheService = module.get<CacheService>(CacheService);
     jest.clearAllMocks();
   });
 

@@ -1,6 +1,6 @@
 import { UserCacheRepository } from '@/core/user/user.cache.repository';
 import { User, UserLoginLog } from '@/core/user/user.entity';
-import { UserRepository } from '@/core/user/user.repository';
+import { UserRepository, UserRow } from '@/core/user/user.repository';
 import { HashService } from '@/infrastructure/hash/hash.service';
 import { AccessToken, RefreshToken } from '@/infrastructure/jwt/jwt.entity';
 import { JwtType } from '@/infrastructure/jwt/jwt.enum';
@@ -12,8 +12,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Cookie } from './auth.type';
 import { LoginDto, SignupDto } from './dtos';
+import { Cookie } from '@/common/types';
+import { UserData } from '@/core/user/user.type';
 
 @Injectable()
 export class AuthService {
@@ -28,20 +29,31 @@ export class AuthService {
     this.logger.debug('Constructed.');
   }
 
-  async signup(dto: SignupDto) {
+  async signup(dto: SignupDto): Promise<Partial<UserRow>> {
     this.logger.log(`Signup attempt for username="${dto.username}"`);
 
     this.logger.verbose('Hashing password...');
     const hashedPassword = await this.hashService.hash(dto.password);
 
     this.logger.verbose('Mapping DTO to User entity...');
-    const newUser = User.create({ ...dto, hashedPassword });
+
+    const userData: UserData = {
+      username: dto.username,
+      email: dto.email,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      dob: dto.dob,
+      gender: dto.gender,
+      type: dto.type,
+      hashedPassword,
+    };
+    const newUser = User.create(userData);
 
     this.logger.verbose('Persisting new user to database...');
     const saved = await this.userRepository.save(newUser);
 
     this.logger.log(
-      `Signup successful - userId="${saved.id}" username="${dto.username}"`,
+      `Signup successful - userId="${String(saved.id)}" username="${dto.username}"`,
     );
     return saved;
   }
@@ -49,7 +61,7 @@ export class AuthService {
   async login(
     dto: LoginDto,
     metadata: { ip: string; fingerprint: string; userAgent: string },
-  ) {
+  ): Promise<{ refreshToken: string }> {
     this.logger.log(
       `Login attempt - username="${dto.username}" ip="${metadata.ip}" fingerprint="${metadata.fingerprint}"`,
     );
@@ -77,7 +89,7 @@ export class AuthService {
     // Non-blocking audit log
     if (user) {
       this.logger.verbose(
-        `Recording login attempt in audit log - userId="${user.id}" success=${Boolean(isPasswordValid)}`,
+        `Recording login attempt in audit log - userId="${user.id}" success=${String(isPasswordValid)}`,
       );
       this.userRepository
         .logLogin(
@@ -89,7 +101,7 @@ export class AuthService {
             used2fa: false,
           }),
         )
-        .catch((err) => {
+        .catch((err: unknown) => {
           this.logger.error(
             `Failed to write login audit log - userId="${user.id}"`,
             err,
@@ -120,7 +132,7 @@ export class AuthService {
     return { refreshToken };
   }
 
-  async refresh(refreshTokenStr: Cookie) {
+  async refresh(refreshTokenStr: Cookie): Promise<string> {
     this.logger.debug('Refresh token request received.');
 
     if (!refreshTokenStr) {
@@ -161,7 +173,7 @@ export class AuthService {
     return signed;
   }
 
-  async logout(refreshTokenStr: Cookie) {
+  async logout(refreshTokenStr: Cookie): Promise<void> {
     this.logger.debug('Logout request received.');
 
     if (!refreshTokenStr) {

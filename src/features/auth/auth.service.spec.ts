@@ -85,10 +85,10 @@ describe('AuthService', () => {
           .spyOn(User, 'create')
           .mockReturnValue(mockSavedUser),
         result = await authService.signup(signupDto);
-
-      expect(mockHashService.hash).toHaveBeenCalledWith(signupDto.password);
+      const { password, ...restDto } = signupDto;
+      expect(mockHashService.hash).toHaveBeenCalledWith(password);
       expect(userCreateSpy).toHaveBeenCalledWith({
-        ...signupDto,
+        ...restDto,
         hashedPassword,
       });
       expect(mockUserRepository.save).toHaveBeenCalledWith(mockSavedUser);

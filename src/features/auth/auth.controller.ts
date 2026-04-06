@@ -10,10 +10,10 @@ import {
 import * as Express from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, SignupDto } from './dtos';
-import type { Cookie } from './auth.type';
 import { Cookies } from '@/common/decorators';
 import { RefreshToken } from '@/infrastructure/jwt/jwt.entity';
 import { UserRow } from '@/core/user/user.repository';
+import type { Cookie } from '@/common/types';
 
 @Controller('auth')
 export class AuthController {

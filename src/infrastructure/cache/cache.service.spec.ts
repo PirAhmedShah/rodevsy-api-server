@@ -11,8 +11,14 @@ jest.mock('redis', () => ({
 
 jest.mock('fs');
 
+interface MockPool {
+  on: jest.Mock;
+  connect: jest.Mock;
+  ping: jest.Mock;
+  close: jest.Mock;
+}
 describe('CacheService', () => {
-  let configService: ConfigService, mockPool: any, service: CacheService;
+  let configService: ConfigService, mockPool: MockPool, service: CacheService;
 
   const ENV: Record<string, string> = {
     CACHE_HOST: 'localhost',
@@ -52,7 +58,7 @@ describe('CacheService', () => {
     configService = module.get<ConfigService>(ConfigService);
 
     // Mock process.kill to prevent test runner from exiting
-    jest.spyOn(process, 'kill').mockImplementation(() => true as any);
+    jest.spyOn(process, 'kill').mockImplementation(() => true);
     jest.clearAllMocks();
   });
 
@@ -83,33 +89,41 @@ describe('CacheService', () => {
 
       await service.onModuleInit();
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(process.kill).toHaveBeenCalledWith(process.pid, 'SIGTERM');
     });
 
     it('should kill process when the pool emits an error event', async () => {
       let errorHandler: ((err: Error) => void) | undefined;
-      mockPool.on.mockImplementation((event: string, cb: any) => {
-        if (event === 'error') errorHandler = cb;
-      });
+      mockPool.on.mockImplementation(
+        (event: string, cb: ((err: Error) => void) | undefined) => {
+          if (event === 'error') errorHandler = cb;
+        },
+      );
 
       await service.onModuleInit();
 
       expect(errorHandler).toBeDefined();
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       errorHandler!(new Error('Redis pool crash'));
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(process.kill).toHaveBeenCalledWith(process.pid, 'SIGTERM');
     });
 
     it('should register an open event handler without throwing', async () => {
       let openHandler: (() => void) | undefined;
-      mockPool.on.mockImplementation((event: string, cb: any) => {
-        if (event === 'open') openHandler = cb;
-      });
+      mockPool.on.mockImplementation(
+        (event: string, cb: (() => void) | undefined) => {
+          if (event === 'open') openHandler = cb;
+        },
+      );
 
       await service.onModuleInit();
 
       expect(openHandler).toBeDefined();
       // Calling it should not throw
       expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         openHandler!();
       }).not.toThrow();
     });
@@ -174,7 +188,7 @@ describe('CacheService', () => {
     });
 
     it('should resolve silently if the pool was never initialized', async () => {
-      service.pool = undefined as any;
+      service.pool = undefined;
       await expect(service.onModuleDestroy()).resolves.not.toThrow();
     });
   });
@@ -186,9 +200,9 @@ describe('CacheService', () => {
       });
 
       // Accessing private method for a specific edge case check
-      expect(() => (service as any).readPassword()).toThrow(
-        /Could not read CACHE password file/,
-      );
+      expect(() => {
+        (service as unknown as { readPassword: () => void }).readPassword();
+      }).toThrow(/Could not read CACHE password file/);
     });
   });
 });

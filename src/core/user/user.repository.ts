@@ -78,7 +78,7 @@ export class UserRepository {
     return res.rows.length > 0 ? res.rows[0] : null;
   }
 
-  private handleDatabaseError(error: any): never {
+  private handleDatabaseError(error: unknown): never {
     // Type guard for Postgres errors (objects with a 'code' string)
     if (error instanceof Error && 'code' in error) {
       const pgError = error as { code: string; detail?: string };

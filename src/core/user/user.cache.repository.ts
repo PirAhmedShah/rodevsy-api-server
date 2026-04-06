@@ -15,7 +15,7 @@ export class UserCacheRepository {
       now = Math.floor(Date.now() / 1000);
 
     this.logger.verbose(
-      `Storing JTI: ${token.jti} with Expiry: ${token.expiresAt}`,
+      `Storing JTI: ${token.jti} with Expiry: ${String(token.expiresAt)}`,
     );
 
     await this.cacheService.execute(async (client) => {
@@ -51,7 +51,7 @@ export class UserCacheRepository {
     // Double-check: Is the stored expiration actually in the future?
     const now = Math.floor(Date.now() / 1000);
     this.logger.debug(
-      `VALIDATION: ${score} is the score.. is it greater than ${now} and indeed its ${score > now}`,
+      `VALIDATION: ${String(score)} is the score.. is it greater than ${String(now)} and indeed its ${String(score > now)}`,
     );
     return score > now;
   }
@@ -62,7 +62,7 @@ export class UserCacheRepository {
     return await this.cacheService.execute(async (client) => {
       this.logger.debug(`Removing ${token.jti}`);
       const removed = await client.zRem(key, token.jti);
-      this.logger.debug(`Entries removed ${removed}`);
+      this.logger.debug(`Entries removed ${String(removed)}`);
       return removed;
     });
   }
