@@ -1,86 +1,81 @@
-
 name: bootstrap
 
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-    setup-vps:
-        runs-on: ubuntu-latest
-        steps:
-            # Assuming the VPS exists, if not head over to Digital Ocean and Create VPS with SSH KEY
-            
-            # Required Secrets
-            #   VPS_PRIVATE_SSH_KEY (private key)
-            #   VPS_SSH_PASSPHRASE (private key passphrase)
-            # Required Variables
-            #   VPS_FINGERPRINT (machine id)
-            #   VPS_PUBLIC_SSH_KEY (public key)
-            #   VPS_HOST (ipv4 addr of vps)
-            #   VPS_USER (The user that will be created with less privilleges)
-            
+  setup-vps:
+    runs-on: ubuntu-latest
+    steps:
+      # Assuming the VPS exists, if not head over to Digital Ocean and Create VPS with SSH KEY
 
-            # After that, we will ssh into VPS
+      # Required Secrets
+      #   VPS_PRIVATE_SSH_KEY (private key)
+      #   VPS_SSH_PASSPHRASE (private key passphrase)
+      # Required Variables
+      #   VPS_FINGERPRINT (machine id)
+      #   VPS_PUBLIC_SSH_KEY (public key)
+      #   VPS_HOST (ipv4 addr of vps)
+      #   VPS_USER (The user that will be created with less privilleges)
 
-            -   name: Configure VPS
-                uses: appleboy/ssh-action@v1.2.5
-                env:
-                    VPS_USER: ${{vars.VPS_USER}}
-                    VPS_PUBLIC_SSH_KEY: ${{vars.VPS_PUBLIC_SSH_KEY}}
-                with:
-                    host: ${{vars.VPS_HOST}}
-                    username: root
-                    key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
-                    passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
-                    #fingerprint: ${{vars.VPS_FINGERPRINT}}
-                    envs: VPS_USER, VPS_PUBLIC_SSH_KEY
-                    #As root we have to setup
-                    # install docker
-                    # create user named VPS_USER, generate its home dir and add docke as supplementary group
-                    # drop in sshd hardening config
-                    # create ~/.ssh/ and add ssh public key to ~/.ssh/authorized_keys
-                    # set proper permissions
-                    # verify sshd config and restart ssh daemon
-                    # create ~/app/ dir on behalf of $VPS_USER
-                    # exit
-                    script: |
-                        curl https://get.docker.com/ | bash
-                        
-                        useradd -m -G docker $VPS_USER
-                        
-                        cat > /etc/ssh/sshd_config.d/99-hardening.conf << 'EOF'
-                        PermitRootLogin no
-                        PasswordAuthentication no
-                        X11Forwarding no
-                        MaxAuthTries 3
-                        EOF
+      # After that, we will ssh into VPS
 
-                        mkdir -p /home/$VPS_USER/.ssh
-                        echo "${VPS_PUBLIC_SSH_KEY}" > /home/$VPS_USER/.ssh/authorized_keys
-                        chown -R $VPS_USER:$VPS_USER /home/$VPS_USER/.ssh
-                        chmod 700 /home/$VPS_USER/.ssh
-                        chmod 600 /home/$VPS_USER/.ssh/authorized_keys
+      - name: Configure VPS
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          VPS_USER: ${{vars.VPS_USER}}
+          VPS_PUBLIC_SSH_KEY: ${{vars.VPS_PUBLIC_SSH_KEY}}
+        with:
+          host: ${{vars.VPS_HOST}}
+          username: root
+          key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
+          passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
+          #fingerprint: ${{vars.VPS_FINGERPRINT}}
+          envs: VPS_USER, VPS_PUBLIC_SSH_KEY
+          #As root we have to setup
+          # install docker
+          # create user named VPS_USER, generate its home dir and add docke as supplementary group
+          # drop in sshd hardening config
+          # create ~/.ssh/ and add ssh public key to ~/.ssh/authorized_keys
+          # set proper permissions
+          # verify sshd config and restart ssh daemon
+          # create ~/app/ dir on behalf of $VPS_USER
+          # exit
+          script: |
+            curl https://get.docker.com/ | bash
 
-                        sshd -t && systemctl restart ssh
-                        
-                        mkdir -p /home/$VPS_USER/app/
-                        chown $VPS_USER:$VPS_USER /home/$VPS_USER/app/
+            useradd -m -G docker $VPS_USER
 
-                        exit
-            
-            -   name: Checkout
-                uses: actions/checkout@v6.0.2
-                
-            -   name: Copying Nessesary files to ~/app/
-                uses: appleboy/scp-action@v1.0.0
-                with:
-                    host: ${{vars.VPS_HOST}}
-                    username: ${{vars.VPS_USER}}
-                    key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
-                    passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
-                    #fingerprint: ${{vars.VPS_FINGERPRINT}}
-                    source: "nginx.prod.conf,migrations/,compose.prod.yaml"
-                    target: "/home/${{ vars.VPS_USER }}/app/"
+            cat > /etc/ssh/sshd_config.d/99-hardening.conf << 'EOF'
+            PermitRootLogin no
+            PasswordAuthentication no
+            X11Forwarding no
+            MaxAuthTries 3
+            EOF
 
+            mkdir -p /home/$VPS_USER/.ssh
+            echo "${VPS_PUBLIC_SSH_KEY}" > /home/$VPS_USER/.ssh/authorized_keys
+            chown -R $VPS_USER:$VPS_USER /home/$VPS_USER/.ssh
+            chmod 700 /home/$VPS_USER/.ssh
+            chmod 600 /home/$VPS_USER/.ssh/authorized_keys
 
-                        
+            sshd -t && systemctl restart ssh
+
+            mkdir -p /home/$VPS_USER/app/
+            chown $VPS_USER:$VPS_USER /home/$VPS_USER/app/
+
+            exit
+
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Copying Nessesary files to ~/app/
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{vars.VPS_HOST}}
+          username: ${{vars.VPS_USER}}
+          key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
+          passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
+          #fingerprint: ${{vars.VPS_FINGERPRINT}}
+          source: 'nginx.prod.conf,migrations/,compose.prod.yaml,secrets/,.env'
+          target: '/home/${{ vars.VPS_USER }}/app/'
