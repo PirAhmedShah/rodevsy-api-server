@@ -14,12 +14,12 @@ interface TestUserRow {
 describe('DbModule (True Integration)', () => {
   let service: DbService;
 
-  // Navigate up from src/infrastructure/db to the project root, then into secrets/
   const realPasswordPath = path.join(
     __dirname,
     '..',
     '..',
     '..',
+    'dummy',
     'secrets',
     'db_password.secret',
   );
@@ -30,7 +30,6 @@ describe('DbModule (True Integration)', () => {
   const DB_NAME = process.env.DB_NAME ?? 'dev';
 
   beforeAll(async () => {
-    // 1. Safely spy on process.kill (and cast variables to string for ESLint)
     jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       console.error(
         `[Test Safety] process.kill(${String(pid)}, ${String(signal)}) intercepted. Is your test PostgreSQL database running?`,
@@ -38,7 +37,6 @@ describe('DbModule (True Integration)', () => {
       return true;
     });
 
-    // 2. Setup REAL ConfigModule and inject our real paths and credentials
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -64,12 +62,10 @@ describe('DbModule (True Integration)', () => {
 
     service = moduleRef.get<DbService>(DbService);
 
-    // 3. Trigger lifecycle hook
     await service.onModuleInit();
   });
 
   afterAll(async () => {
-    // 4. Cleanup
     await service.onModuleDestroy();
     jest.restoreAllMocks();
   });
@@ -89,7 +85,7 @@ describe('DbModule (True Integration)', () => {
     it('should perform a full DDL and DML cycle (Create, Insert, Select, Drop)', async () => {
       const tableName = 'int_test_users_table';
 
-      // 1. Create a temporary testing table
+      // Create a temporary testing table
       await service.query(`
         CREATE TABLE IF NOT EXISTS ${tableName} (
           id SERIAL PRIMARY KEY,
@@ -97,7 +93,7 @@ describe('DbModule (True Integration)', () => {
         );
       `);
 
-      // 2. Insert data using parameterized queries (Typed with TestUserRow)
+      // Insert data using parameterized queries (Typed with TestUserRow)
       const insertResult = await service.query<TestUserRow>(
         `INSERT INTO ${tableName} (name) VALUES ($1) RETURNING *;`,
         ['Integration Tester'],
@@ -106,7 +102,7 @@ describe('DbModule (True Integration)', () => {
       expect(insertResult.rows[0].name).toBe('Integration Tester');
       expect(insertResult.rows[0].id).toBeDefined();
 
-      // 3. Select data to verify persistence (Typed with TestUserRow)
+      // Select data to verify persistence (Typed with TestUserRow)
       const selectResult = await service.query<TestUserRow>(
         `SELECT * FROM ${tableName} WHERE name = $1`,
         ['Integration Tester'],
@@ -115,7 +111,7 @@ describe('DbModule (True Integration)', () => {
       expect(selectResult.rows).toHaveLength(1);
       expect(selectResult.rows[0].name).toBe('Integration Tester');
 
-      // 4. Drop table to leave the database perfectly clean
+      // Drop table to leave the database perfectly clean
       await service.query(`DROP TABLE ${tableName};`);
     });
 

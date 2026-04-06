@@ -28,11 +28,10 @@ describe('AuthModule Integration', () => {
   const testEmail = `inttest${uniqueId}@example.com`;
   const testPassword = 'StrongPassword123!';
 
-  // Resolve absolute paths to your real local dev secrets
-  const secretsDir = path.join(__dirname, '..', '..', '..', 'secrets');
+  const secretsDir = path.join(__dirname, '..', '..', '..', 'dummy', 'secrets');
 
   beforeAll(async () => {
-    // 1. Safely spy on process.kill
+    //spy on process.kill
     jest.spyOn(process, 'kill').mockImplementation((pid, signal) => {
       console.error(
         `[Test Safety] process.kill(${String(pid)}, ${String(signal)}) intercepted. Are your Docker DB/Redis containers running?`,
@@ -40,7 +39,6 @@ describe('AuthModule Integration', () => {
       return true;
     });
 
-    // 2. Setup REAL ConfigModule injecting real paths for DB, Cache, and JWT
     app = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({
@@ -77,7 +75,6 @@ describe('AuthModule Integration', () => {
       .setLogger(SilentLogger)
       .compile();
 
-    // 3. Initialize the application
     await app.init();
 
     authService = app.get<AuthService>(AuthService);
@@ -109,7 +106,6 @@ describe('AuthModule Integration', () => {
         gender: UserGender.MALE,
       };
 
-      // Execute signup logic
       await authService.signup(signupDto);
 
       // Verify the results directly against the real database table

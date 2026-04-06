@@ -79,8 +79,6 @@ services:
       - POSTGRES_DB=dev
     secrets:
       - db_password
-    volumes:
-      - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 20s
@@ -97,8 +95,6 @@ services:
       --appendonly yes'
     secrets:
       - cache_password
-    volumes:
-      - cache_data:/data
     healthcheck:
       test:
         [
@@ -111,16 +107,10 @@ services:
 
 secrets:
   db_password:
-    file: ./secrets/db_password.secret
+    file: ./dummy/secrets/db_password.secret
   cache_password:
-    file: ./secrets/cache_password.secret
+    file: ./dummy/secrets/cache_password.secret
   jwt_public:
-    file: ./secrets/jwt_public.pem
+    file: ./dummy/secrets/jwt_public.pem
   jwt_private:
-    file: ./secrets/jwt_private.pem
-
-volumes:
-  db_data:
-    driver: local
-  cache_data:
-    driver: local
+    file: ./dummy/secrets/jwt_private.pem
