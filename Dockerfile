@@ -1,11 +1,11 @@
 FROM node:24-alpine3.22
-RUN corepack enable && corepack prepare pnpm@10.27.0 --activate
 
 WORKDIR /app
 
 # Step 1: Only copy files that define dependencies
 COPY pnpm-lock.yaml package.json ./
 
+RUN corepack enable
 # Step 2: Install (Docker caches this unless the files above change)
 RUN pnpm install
 
