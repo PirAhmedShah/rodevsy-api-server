@@ -50,9 +50,9 @@ services:
       - CACHE_POOL_MAX_CONNECTIONS=100
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '-', 'http://localhost:8080/']
-      interval: 20s
-      timeout: 10s
-      retries: 5
+      interval: 2s
+      timeout: 1s
+      retries: 10
     volumes:
       - .:/app
       - /app/node_modules
@@ -81,9 +81,9 @@ services:
       - db_password
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
-      interval: 20s
-      timeout: 10s
-      retries: 5
+      interval: 2s
+      timeout: 1s
+      retries: 10
 
   dev_cache:
     ports:

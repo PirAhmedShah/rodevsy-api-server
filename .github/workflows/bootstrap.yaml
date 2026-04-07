@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Assuming the VPS exists, if not head over to Digital Ocean and Create VPS with SSH KEY
+      # Also assuming that you have added VPS IPv4 to DNS A record api.rodevsy.app and ran certbot standalone dns verification for certs
+      # then also created productions secrets ~/app/secrets
 
       # Required Secrets
       #   VPS_PRIVATE_SSH_KEY (private key)

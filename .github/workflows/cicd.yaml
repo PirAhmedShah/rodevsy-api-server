@@ -1,0 +1,113 @@
+name: cicd
+
+on:
+  push:
+    # branches: [main]
+  workflow_call:
+jobs:
+  # Required Secrets
+  #   VPS_PRIVATE_SSH_KEY (private key)
+  #   VPS_SSH_PASSPHRASE (private key passphrase)
+  # Required Variables
+  #   VPS_FINGERPRINT (machine id)
+  #   VPS_PUBLIC_SSH_KEY (public key)
+  #   VPS_HOST (ipv4 addr of vps)
+  #   VPS_USER (The user that will be created with less privilleges)
+  pipeline:
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps:
+      # CI
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v6.3.0
+
+      - name: Enabling corepack
+        run: corepack enable
+
+      - name: Auditing
+        run: pnpm audit --audit-level high
+
+      - name: Installing Dependancies
+        run: pnpm install --frozen-lockfile
+
+      - name: Linting
+        run: pnpm run lint
+
+      - name: Unit Testing
+        run: pnpm run test
+
+      - name: Integration Testing
+        run: |
+          docker compose up -d dev_db dev_cache --wait
+          docker compose up --exit-code-from db_migration db_migration
+          pnpm run test:int
+
+      - name: Integration Testing (Cleanup)
+        if: always()
+        run: docker compose down
+
+      # CD
+      # now build the image, push it to ghcr images repository and then ssh into vps
+      # replace it along with rsyncing the the configuration files.
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # We add an 'id' so we can reference this step later
+      # and we write to $GITHUB_OUTPUT instead of $GITHUB_ENV
+      - name: Set lowercase repository name
+        id: format_string
+        run: |
+          echo "repo_lc=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t ghcr.io/${{ steps.format_string.outputs.repo_lc }}:latest .
+          docker push ghcr.io/${{ steps.format_string.outputs.repo_lc }}:latest
+
+      - name: Overwriting Nessesary files to ~/app/
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{vars.VPS_HOST}}
+          username: ${{vars.VPS_USER}}
+          key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
+          passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
+          #fingerprint: ${{vars.VPS_FINGERPRINT}}
+          source: 'nginx.prod.conf,migrations/,compose.prod.yaml'
+          target: '/home/${{ vars.VPS_USER }}/app/'
+
+      - name: Deploying
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          VPS_USER: ${{vars.VPS_USER}}
+          VPS_PUBLIC_SSH_KEY: ${{vars.VPS_PUBLIC_SSH_KEY}}
+        with:
+          host: ${{vars.VPS_HOST}}
+          username: ${{vars.VPS_USER}}
+          key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
+          passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
+          #fingerprint: ${{vars.VPS_FINGERPRINT}}
+          envs: VPS_USER, VPS_PUBLIC_SSH_KEY
+          script: |
+            # Navigate to the application directory we just SCP'd files into
+            cd ~/app/
+
+            # Authenticate the VPS with GHCR to pull the new image
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            #Pull the newly pushed image
+            docker compose -f compose.prod.yaml pull
+
+            #Restart the containers (Docker automatically detects the new image and replaces running containers)
+            docker compose -f compose.prod.yaml up -d
+
+            #Clean up old, unused images to prevent your VPS disk from filling up
+            docker image prune -f
