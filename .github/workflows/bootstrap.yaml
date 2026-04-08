@@ -19,6 +19,7 @@ jobs:
       #   VPS_PUBLIC_SSH_KEY (public key)
       #   VPS_HOST (ipv4 addr of vps)
       #   VPS_USER (The user that will be created with less privilleges)
+      #   DOMAIN (The A Record pointing to vps, $(dig $DOMAIN +short) == $VPS_HOST before continuing)
 
       # After that, we will ssh into VPS
 
@@ -27,13 +28,15 @@ jobs:
         env:
           VPS_USER: ${{vars.VPS_USER}}
           VPS_PUBLIC_SSH_KEY: ${{vars.VPS_PUBLIC_SSH_KEY}}
+          DOMAIN: ${{vars.DOMAIN}}
+          EMAIL: ${{vars.EMAIL}}
         with:
           host: ${{vars.VPS_HOST}}
           username: root
           key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
           passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
           #fingerprint: ${{vars.VPS_FINGERPRINT}}
-          envs: VPS_USER, VPS_PUBLIC_SSH_KEY
+          envs: VPS_USER, VPS_PUBLIC_SSH_KEY, DOMAIN, EMAIL
           #As root we have to setup
           # install docker
           # create user named VPS_USER, generate its home dir and add docke as supplementary group
@@ -65,6 +68,8 @@ jobs:
 
             mkdir -p /home/$VPS_USER/app/
             chown $VPS_USER:$VPS_USER /home/$VPS_USER/app/
+
+            docker run -it --rm --name certbot -p 80:80 -v "/etc/letsencrypt:/etc/letsencrypt" -v "/var/lib/letsencrypt:/var/lib/letsencrypt" certbot/certbot certonly --standalone -d $DOMAIN --email $EMAIL --agree-tos --no-eff-email
 
             exit
 
