@@ -47,6 +47,12 @@ jobs:
           # create ~/app/ dir on behalf of $VPS_USER
           # exit
           script: |
+            DOMAIN_VPS=$(dig $DOMAIN +short)
+            if [[ "$VPS_HOST" != "$DOMAIN_VPS" ]]; then
+              echo "Error: $DOMAIN MUST point to this VPS($VPS_HOST). Currently it's pointing to $DOMAIN_VPS. Update the DNS record before continuing." >&2
+              exit 1
+            fi
+
             curl https://get.docker.com/ | bash
 
             useradd -m -G docker $VPS_USER
