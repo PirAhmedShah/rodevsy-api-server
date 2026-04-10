@@ -76,9 +76,7 @@ jobs:
             mkdir -p /home/$VPS_USER/app/
             chown $VPS_USER:$VPS_USER /home/$VPS_USER/app/
 
-            docker run -it --rm --name certbot -p 80:80 -v "/etc/letsencrypt:/etc/letsencrypt" -v "/var/lib/letsencrypt:/var/lib/letsencrypt" certbot/certbot certonly --standalone -d $DOMAIN --email $EMAIL --agree-tos --no-eff-email
-
-            exit
+            docker run --rm --name certbot -p 80:80 -v "/etc/letsencrypt:/etc/letsencrypt" -v "/var/lib/letsencrypt:/var/lib/letsencrypt" certbot/certbot certonly --standalone --non-interactive -d $DOMAIN --email $EMAIL --agree-tos --no-eff-email
 
       - name: Checkout
         uses: actions/checkout@v6.0.2
