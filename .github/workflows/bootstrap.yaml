@@ -94,15 +94,12 @@ jobs:
 
       - name: Creating Secrets
         uses: appleboy/ssh-action@v1.2.5
-        env:
-          VPS_USER: ${{vars.VPS_USER}}
         with:
           host: ${{vars.VPS_HOST}}
           username: ${{vars.VPS_USER}}
           key: ${{secrets.VPS_PRIVATE_SSH_KEY}}
           passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
           #fingerprint: ${{vars.VPS_FINGERPRINT}}
-          envs: VPS_USER
           script: |
             # Navigate to the application directory we just SCP'd files into
 
