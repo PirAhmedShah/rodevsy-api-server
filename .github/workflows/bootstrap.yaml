@@ -46,7 +46,7 @@ jobs:
           # set proper permissions
           # verify sshd config and restart ssh daemon
           # create ~/app/ dir on behalf of $VPS_USER
-          # exit
+          # install and run certbot image to get tls certs
           script: |
             DOMAIN_VPS=$(dig $DOMAIN +short)
             if [[ "$VPS_HOST" != "$DOMAIN_VPS" ]]; then
@@ -101,8 +101,6 @@ jobs:
           passphrase: ${{secrets.VPS_SSH_PASSPHRASE}}
           #fingerprint: ${{vars.VPS_FINGERPRINT}}
           script: |
-            # Navigate to the application directory we just SCP'd files into
-
             mkdir ~/app/secrets
             openssl genpkey -algorithm ed25519 -out ~/app/secrets/jwt_private.pem
             openssl pkey -in ~/app/secrets/jwt_private.pem -pubout -out ~/app/secrets/jwt_public.pem

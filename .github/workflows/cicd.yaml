@@ -38,7 +38,6 @@ jobs:
 
       - name: Linting
         run: pnpm run lint
-
       - name: Unit Testing
         run: pnpm run test
 
@@ -98,17 +97,8 @@ jobs:
           #fingerprint: ${{vars.VPS_FINGERPRINT}}
           envs: VPS_USER, VPS_PUBLIC_SSH_KEY
           script: |
-            # Navigate to the application directory we just SCP'd files into
             cd ~/app/
-
-            # Authenticate the VPS with GHCR to pull the new image
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            #Pull the newly pushed image
             docker compose -f compose.prod.yaml pull
-
-            #Restart the containers (Docker automatically detects the new image and replaces running containers)
             docker compose -f compose.prod.yaml up -d
-
-            #Clean up old, unused images to prevent your VPS disk from filling up
             docker image prune -f
