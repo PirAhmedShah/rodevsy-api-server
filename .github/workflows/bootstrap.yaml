@@ -49,7 +49,7 @@ jobs:
           # install and run certbot image to get tls certs
           script: |
             DOMAIN_VPS=$(dig $DOMAIN +short)
-            if [[ "$VPS_HOST" != "$DOMAIN_VPS" ]]; then
+            if ! echo "$DOMAIN_VPS" | grep -q "$VPS_HOST"; then
               echo "Error: $DOMAIN MUST point to this VPS($VPS_HOST). Currently it's pointing to $DOMAIN_VPS. Update the DNS record before continuing." >&2
               exit 1
             fi
