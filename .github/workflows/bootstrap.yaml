@@ -109,5 +109,5 @@ jobs:
             mkdir ~/app/secrets
             openssl genpkey -algorithm ed25519 -out ~/app/secrets/jwt_private.pem
             openssl pkey -in ~/app/secrets/jwt_private.pem -pubout -out ~/app/secrets/jwt_public.pem
-            openssl rand -hex -out ~/app/secrets/db_password.secret
-            openssl rand -hex -out ~/app/secrets/cache_password.secret
+            openssl rand -hex -out ~/app/secrets/db_password.secret 32
+            openssl rand -hex -out ~/app/secrets/cache_password.secret 32
