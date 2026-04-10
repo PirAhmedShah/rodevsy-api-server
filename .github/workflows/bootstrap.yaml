@@ -111,3 +111,8 @@ jobs:
             openssl pkey -in ~/app/secrets/jwt_private.pem -pubout -out ~/app/secrets/jwt_public.pem
             openssl rand -hex -out ~/app/secrets/db_password.secret 32
             openssl rand -hex -out ~/app/secrets/cache_password.secret 32
+
+  call-cicd:
+    needs: setup-vps
+    uses: ./.github/workflows/cicd.yaml
+    secrets: inherit # This passes all your repo secrets (like VPS keys) down to the cicd workflow
